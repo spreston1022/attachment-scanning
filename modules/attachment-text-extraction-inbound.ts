@@ -6,6 +6,13 @@ import {
   type AiFormat,
 } from "@zuplo/runtime";
 import { extractAttachmentText } from "./attachments/extract";
+import {
+  rewriteBlocks,
+  setScanState,
+  type AttachmentReport,
+  type AttachmentScanState,
+  type Block,
+} from "./attachments/request-blocks";
 
 /**
  * Attachment Text Extraction
@@ -16,7 +23,10 @@ import { extractAttachmentText } from "./attachments/extract";
  * because DLP only reads text blocks.
  *
  * Place it in the app's policy chain immediately before
- * `ai-gateway-dlp-inbound`.
+ * `ai-gateway-dlp-inbound`. Add `attachment-restore-inbound` immediately after
+ * DLP to forward the original file whenever DLP left its text unchanged (alert
+ * mode, or redact mode with nothing found). Without it, the extracted text is
+ * always forwarded in place of the file.
  *
  * Handles:
  * - openai-chat:        `{ type: "file", file: { filename, file_data } }`
@@ -37,8 +47,6 @@ interface PolicyOptions {
 
 const DEFAULT_MAX_FILE_BYTES = 20 * 1024 * 1024;
 
-type Block = Record<string, any>;
-
 interface Attachment {
   filename?: string;
   mediaType?: string;
@@ -48,12 +56,6 @@ interface Attachment {
   text?: string;
   /** Why the block cannot be read at all, e.g. a file_id or URL reference. */
   unreadable?: string;
-}
-
-interface Report {
-  filename: string;
-  status: "extracted" | "blocked" | "allowed-unscanned";
-  detail: string;
 }
 
 export default async function attachmentTextExtraction(
@@ -70,7 +72,8 @@ export default async function attachmentTextExtraction(
 
   const onUnsupported = options.onUnsupported ?? "block";
   const maxFileBytes = options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES;
-  const reports: Report[] = [];
+  const state: AttachmentScanState = { extracted: new Map(), reports: [] };
+  const reports = state.reports;
   let changed = false;
 
   const convert = async (block: Block): Promise<Block | undefined> => {
@@ -86,12 +89,16 @@ export default async function attachmentTextExtraction(
       return undefined;
     }
 
-    reports.push({ filename, status: "extracted", detail: text.summary });
+    const report: AttachmentReport = { filename, status: "extracted", detail: text.summary };
+    reports.push(report);
     changed = true;
-    return textBlock(format, block, wrap(filename, text.kind, text.text));
+    const id = crypto.randomUUID();
+    const wrapped = wrap(id, filename, text.kind, text.text);
+    state.extracted.set(id, { original: block, text: wrapped, report });
+    return textBlock(format, block, wrapped);
   };
 
-  await rewriteBody(format, parsed.body as Block, convert);
+  await rewriteBlocks(format, parsed.body as Block, convert);
 
   for (const r of reports) {
     context.log.info(`${policyName}: ${r.filename} ${r.status} (${r.detail})`);
@@ -108,12 +115,14 @@ export default async function attachmentTextExtraction(
   }
 
   if (reports.length) {
-    const header = reports
-      .map((r) => `${r.filename}=${r.status}`)
-      .join(", ");
+    setScanState(context, state);
+    // Built at send time so it reflects what the restore policy decided.
     context.addResponseSendingHook((response) => {
       const headers = new Headers(response.headers);
-      headers.set("x-attachment-scan", header);
+      headers.set(
+        "x-attachment-scan",
+        reports.map((r) => `${r.filename}=${r.status}`).join(", "),
+      );
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
@@ -132,39 +141,7 @@ export default async function attachmentTextExtraction(
   });
 }
 
-// --- request walking ---------------------------------------------------------
-
-type Convert = (block: Block) => Promise<Block | undefined>;
-
-async function rewriteBody(format: AiFormat, body: Block, convert: Convert) {
-  if (format === "openai-responses") {
-    if (!Array.isArray(body.input)) return;
-    for (const item of body.input) {
-      if (Array.isArray(item?.content)) await rewriteBlocks(item.content, convert);
-    }
-    return;
-  }
-
-  // openai-chat and anthropic-messages both carry `messages[].content`.
-  if (!Array.isArray(body.messages)) return;
-  for (const message of body.messages) {
-    if (!Array.isArray(message?.content)) continue;
-    await rewriteBlocks(message.content, convert);
-    // Anthropic tool results can themselves contain documents.
-    for (const block of message.content) {
-      if (block?.type === "tool_result" && Array.isArray(block.content)) {
-        await rewriteBlocks(block.content, convert);
-      }
-    }
-  }
-}
-
-async function rewriteBlocks(blocks: Block[], convert: Convert) {
-  for (let i = 0; i < blocks.length; i++) {
-    const replacement = await convert(blocks[i]);
-    if (replacement) blocks[i] = replacement;
-  }
-}
+// --- reading attachments ---------------------------------------------------
 
 function readAttachment(format: AiFormat, block: Block): Attachment | undefined {
   if (!block || typeof block !== "object") return undefined;
@@ -273,9 +250,9 @@ function decodeBase64(b64: string): Uint8Array {
   return bytes;
 }
 
-function wrap(filename: string, kind: string, text: string): string {
+function wrap(id: string, filename: string, kind: string, text: string): string {
   const name = filename.replace(/"/g, "'");
-  return `<attachment filename="${name}" type="${kind}">\n${text}\n</attachment>`;
+  return `<attachment id="${id}" filename="${name}" type="${kind}">\n${text}\n</attachment>`;
 }
 
 function textBlock(format: AiFormat, original: Block, text: string): Block {

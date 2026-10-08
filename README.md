@@ -67,22 +67,29 @@ policies declared in `config/policies.json`. To add your own policy, write it in
 ## Attachment scanning
 
 The built-in DLP policy only scans text blocks, so file attachments (base64
-PDFs, Word, and Excel files) pass through it unscanned. The
-`attachment-text-extraction-inbound` policy
-(`modules/attachment-text-extraction-inbound.ts`) closes that gap: it converts
-each attachment to text at the gateway, replaces the file block with a text
-block, and DLP then scans and masks or blocks that text before the request is
-forwarded to the model. Extraction runs entirely in the gateway; nothing is sent
-to an external service.
+PDFs, Word, and Excel files) pass through it unscanned. Two policies close that
+gap, placed around DLP in the app's chain:
 
-| Attachment                         | Result                                   |
-| ---------------------------------- | ---------------------------------------- |
-| PDF with a text layer              | Replaced with its text, page by page     |
-| `.docx` (body, headers, footers, footnotes, comments) | Replaced with its text |
-| `.xlsx` (every sheet, tab-separated) | Replaced with its text                 |
-| `.pptx` (slides and speaker notes) | Replaced with its text                   |
-| txt, csv, md, json, xml, html      | Replaced with its text                   |
-| Images, scanned PDFs, `.doc`/`.xls`, file IDs/URLs | Blocked with a 422       |
+1. `attachment-text-extraction-inbound` (before DLP) converts each attachment
+   to text and puts that text in place of the file, so DLP scans it.
+2. `ai-gateway-dlp-inbound` scans the text and masks, blocks, or logs.
+3. `attachment-restore-inbound` (after DLP) decides what the model receives:
+   - DLP left the text unchanged (log/alert mode, or nothing found): the
+     **original file** is forwarded, formatting intact.
+   - DLP masked something: the **masked text** is forwarded in place of the
+     file, so the unmasked original never reaches the model.
+
+Without the restore policy, the extracted text is always forwarded. Everything
+runs inside the gateway; nothing is sent to an external service.
+
+| Attachment                                            | Scanned as                   |
+| ----------------------------------------------------- | ---------------------------- |
+| PDF with a text layer                                 | Its text, page by page       |
+| `.docx` (body, headers, footers, footnotes, comments) | Its text                     |
+| `.xlsx` (every sheet, tab-separated)                  | Its text                     |
+| `.pptx` (slides and speaker notes)                    | Its text                     |
+| txt, csv, md, json, xml, html                         | Its text                     |
+| Images, scanned PDFs, `.doc`/`.xls`, file IDs/URLs    | Not scannable: blocked (422) |
 
 Request shapes handled: OpenAI chat (`file` parts), OpenAI Responses
 (`input_file`), and Anthropic Messages (`document` blocks), including documents
@@ -94,10 +101,12 @@ Options (in `config/policies.json`):
   attachments it cannot read without scanning them.
 - `maxFileBytes`: decoded size limit per attachment (default 20 MB).
 
-To enable it, add `attachment-text-extraction-inbound` to the app's policy chain
-in the Zuplo Portal **immediately before** `ai-gateway-dlp-inbound`. Each
-response then carries an `x-attachment-scan` header listing what happened to
-each file.
+To enable it, in the Zuplo Portal add `attachment-text-extraction-inbound`
+**immediately before** `ai-gateway-dlp-inbound` in the app's policy chain, and
+`attachment-restore-inbound` **immediately after** it. Each response carries an
+`x-attachment-scan` header saying what happened to each file:
+`original-forwarded`, `masked-text-forwarded`, `extracted` (text forwarded, no
+restore policy), `blocked`, or `allowed-unscanned`.
 
 ### Demo
 
@@ -108,6 +117,7 @@ each file.
 | `statement.pdf`         | Scanned; card and IBAN masked |
 | `loan-application.docx` | Scanned; card and IBAN masked |
 | `customers.xlsx`        | Scanned; cards and IBANs masked |
+| `meeting-notes.pdf`     | Scanned; nothing found, original PDF forwarded |
 | `scanned-contract.pdf`  | Blocked (no text layer)      |
 | `receipt-photo.png`     | Blocked (image)              |
 

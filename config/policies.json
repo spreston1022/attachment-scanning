@@ -208,6 +208,15 @@
     },
     {
       "handler": {
+        "export": "default",
+        "module": "$import(./modules/attachment-restore-inbound)",
+        "options": {}
+      },
+      "name": "attachment-restore-inbound",
+      "policyType": "custom-code-inbound"
+    },
+    {
+      "handler": {
         "export": "AIGatewaySmartRouterInboundPolicy",
         "module": "$import(@zuplo/runtime)",
         "options": {
