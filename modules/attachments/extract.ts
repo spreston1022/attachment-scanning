@@ -1,5 +1,10 @@
-import { strFromU8, unzipSync, type Unzipped } from "fflate";
-import { extractText as extractPdfText, getDocumentProxy } from "unpdf";
+import {
+  extractText as extractPdfText,
+  getDocumentProxy,
+  strFromU8,
+  unzipSync,
+  type Unzipped,
+} from "./vendor/libs.js";
 
 /**
  * Converts attachment bytes to plain text so the DLP policy can scan them.
