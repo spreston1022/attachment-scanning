@@ -64,6 +64,63 @@ An app runs only the policies listed in its policy chain, and it can select only
 policies declared in `config/policies.json`. To add your own policy, write it in
 `modules/` and declare it in `config/policies.json`.
 
+## Attachment scanning
+
+The built-in DLP policy only scans text blocks, so file attachments (base64
+PDFs, Word, and Excel files) pass through it unscanned. The
+`attachment-text-extraction-inbound` policy
+(`modules/attachment-text-extraction-inbound.ts`) closes that gap: it converts
+each attachment to text at the gateway, replaces the file block with a text
+block, and DLP then scans and masks or blocks that text before the request is
+forwarded to the model. Extraction runs entirely in the gateway; nothing is sent
+to an external service.
+
+| Attachment                         | Result                                   |
+| ---------------------------------- | ---------------------------------------- |
+| PDF with a text layer              | Replaced with its text, page by page     |
+| `.docx` (body, headers, footers, footnotes, comments) | Replaced with its text |
+| `.xlsx` (every sheet, tab-separated) | Replaced with its text                 |
+| `.pptx` (slides and speaker notes) | Replaced with its text                   |
+| txt, csv, md, json, xml, html      | Replaced with its text                   |
+| Images, scanned PDFs, `.doc`/`.xls`, file IDs/URLs | Blocked with a 422       |
+
+Request shapes handled: OpenAI chat (`file` parts), OpenAI Responses
+(`input_file`), and Anthropic Messages (`document` blocks), including documents
+inside Anthropic `tool_result` blocks.
+
+Options (in `config/policies.json`):
+
+- `onUnsupported`: `"block"` (default) or `"allow"`. `allow` forwards
+  attachments it cannot read without scanning them.
+- `maxFileBytes`: decoded size limit per attachment (default 20 MB).
+
+To enable it, add `attachment-text-extraction-inbound` to the app's policy chain
+in the Zuplo Portal **immediately before** `ai-gateway-dlp-inbound`. Each
+response then carries an `x-attachment-scan` header listing what happened to
+each file.
+
+### Demo
+
+`demo/fixtures/` holds sample files with fake card numbers and IBANs:
+
+| File                    | Expected                     |
+| ----------------------- | ---------------------------- |
+| `statement.pdf`         | Scanned; card and IBAN masked |
+| `loan-application.docx` | Scanned; card and IBAN masked |
+| `customers.xlsx`        | Scanned; cards and IBANs masked |
+| `scanned-contract.pdf`  | Blocked (no text layer)      |
+| `receipt-photo.png`     | Blocked (image)              |
+
+```bash
+export APP_ID=<app_id> ZUPLO_APP_API_KEY=<key> MODEL=<provider/model>
+node demo/send.mjs demo/fixtures/loan-application.docx
+node demo/send.mjs demo/fixtures/customers.xlsx --anthropic
+node demo/send.mjs demo/fixtures/scanned-contract.pdf
+```
+
+Run each request once with the extraction policy in the chain and once without
+it to show the difference: without it the file reaches the model unmasked.
+
 ## Debugging
 
 In VS Code, open **Run and Debug**, select **Launch & Attach Zuplo**, and click

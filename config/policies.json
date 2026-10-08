@@ -156,6 +156,18 @@
     },
     {
       "handler": {
+        "export": "default",
+        "module": "$import(./modules/attachment-text-extraction-inbound)",
+        "options": {
+          "onUnsupported": "block",
+          "maxFileBytes": 20971520
+        }
+      },
+      "name": "attachment-text-extraction-inbound",
+      "policyType": "custom-code-inbound"
+    },
+    {
+      "handler": {
         "export": "AIGatewayDlpInboundPolicy",
         "module": "$import(@zuplo/runtime)",
         "options": {
