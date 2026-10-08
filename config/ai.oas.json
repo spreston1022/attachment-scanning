@@ -1,0 +1,139 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "AI Gateway API",
+    "description": "A unified API gateway for multiple AI providers. OpenAI-compatible ops are served under /{app_id}/v1/*, AWS Bedrock Runtime ops under /{app_id}/model/{modelId}/{operation}; other paths under /{app_id} are rejected."
+  },
+  "paths": {
+    "/u/:app_id/(.*)": {
+      "x-zuplo-path": {
+        "pathMode": "url-pattern"
+      },
+      "get,post,put,patch,delete,head": {
+        "summary": "AI Gateway User App catch-all",
+        "description": "Routes User App requests under /u/{app_id}/* to the AI Gateway handler. The configuration kind must be ai-user-app.",
+        "operationId": "aiGatewayUserAppCatchAll",
+        "responses": {
+          "200": {
+            "description": "Successful AI Gateway response"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "403": {
+            "description": "Forbidden \u2014 User App routes require a personal API key issued for this User App; application API keys cannot authenticate them"
+          },
+          "404": {
+            "description": "Unsupported AI Gateway endpoint"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "x-zuplo-route": {
+          "corsPolicy": "none",
+          "handler": {
+            "export": "aiGatewayHandlerV2",
+            "module": "$import(@zuplo/runtime)",
+            "options": {}
+          },
+          "policies": {
+            "inbound": [
+              "ai-gateway-configuration-loader-inbound",
+              "ai-gateway-configuration-executor-inbound"
+            ]
+          }
+        }
+      }
+    },
+    "/a/:app_id/(.*)": {
+      "x-zuplo-path": {
+        "pathMode": "url-pattern"
+      },
+      "get,post,put,patch,delete,head": {
+        "summary": "AI Gateway AI App catch-all",
+        "description": "Routes AI App requests under /a/{app_id}/* to the AI Gateway handler. The configuration kind must be ai-app.",
+        "operationId": "aiGatewayAIAppCatchAll",
+        "responses": {
+          "200": {
+            "description": "Successful AI Gateway response"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized \u2014 returned only when the application's inboundPolicyChain includes ai-gateway-auth-inbound, or authentication runs before the configuration loader"
+          },
+          "403": {
+            "description": "Forbidden \u2014 returned by per-app policies, such as an API key issued for a different app_id or a model the app does not allow"
+          },
+          "404": {
+            "description": "Unsupported AI Gateway endpoint"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "x-zuplo-route": {
+          "corsPolicy": "none",
+          "handler": {
+            "export": "aiGatewayHandlerV2",
+            "module": "$import(@zuplo/runtime)",
+            "options": {}
+          },
+          "policies": {
+            "inbound": [
+              "ai-gateway-configuration-loader-inbound",
+              "ai-gateway-configuration-executor-inbound"
+            ]
+          }
+        }
+      }
+    },
+    "/:app_id/(.*)": {
+      "x-zuplo-path": {
+        "pathMode": "url-pattern"
+      },
+      "get,post,put,patch,delete,head": {
+        "summary": "AI Gateway catch-all",
+        "description": "Routes AI requests under /{app_id}/* to the AI Gateway handler. The configuration loader loads the application configuration from the app_id path segment; the configuration executor then runs the application's inboundPolicyChain. Two path shapes succeed: a supported /v1/... operation (see resolveBasePath in packages/runtime/src/llm-translation/index.ts for the current set) and a Bedrock Runtime operation addressed AWS's way as /model/{modelId}/{operation} (see matchBedrockRuntimeRoute in packages/runtime/src/ai-gateway/bedrock-runtime-route.ts). Anything else under /{app_id} returns 404.",
+        "operationId": "aiGatewayCatchAll",
+        "responses": {
+          "200": {
+            "description": "Successful AI Gateway response"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized \u2014 returned only when the application's inboundPolicyChain includes ai-gateway-auth-inbound, or authentication runs before the configuration loader"
+          },
+          "403": {
+            "description": "Forbidden \u2014 returned by per-app policies, such as an API key issued for a different app_id or a model the app does not allow"
+          },
+          "404": {
+            "description": "Unsupported AI Gateway endpoint"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "x-zuplo-route": {
+          "corsPolicy": "none",
+          "handler": {
+            "export": "aiGatewayHandlerV2",
+            "module": "$import(@zuplo/runtime)",
+            "options": {}
+          },
+          "policies": {
+            "inbound": [
+              "ai-gateway-configuration-loader-inbound",
+              "ai-gateway-configuration-executor-inbound"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

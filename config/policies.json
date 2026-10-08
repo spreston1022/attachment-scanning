@@ -1,0 +1,219 @@
+{
+  "policies": [
+    {
+      "handler": {
+        "export": "AIGatewayAuthInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {}
+      },
+      "name": "ai-gateway-auth-inbound",
+      "policyType": "ai-gateway-auth"
+    },
+    {
+      "handler": {
+        "export": "InternalOnlyInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {}
+      },
+      "name": "internal-only-inbound",
+      "policyType": "internal-only"
+    },
+    {
+      "handler": {
+        "export": "AIGatewayConfigurationLoaderInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "cacheTtlSeconds": 5
+        }
+      },
+      "name": "ai-gateway-configuration-loader-inbound",
+      "policyType": "ai-gateway-configuration-loader"
+    },
+    {
+      "handler": {
+        "export": "AIGatewayConfigurationExecutorInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {}
+      },
+      "name": "ai-gateway-configuration-executor-inbound",
+      "policyType": "ai-gateway-configuration-executor"
+    },
+    {
+      "handler": {
+        "export": "AIGatewayMeteringInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {}
+      },
+      "name": "ai-gateway-metering-inbound",
+      "policyType": "ai-gateway-metering"
+    },
+    {
+      "handler": {
+        "export": "AIGatewayModelOverrideInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "models": {
+            "completions": {
+              "default": "openai/gpt-4o-mini"
+            }
+          }
+        }
+      },
+      "name": "ai-gateway-model-override-inbound",
+      "policyType": "ai-gateway-model-override"
+    },
+    {
+      "handler": {
+        "export": "AIGatewayModelFilteringInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "models": {
+            "completions": {
+              "allowList": ["openai/gpt-4o-mini"]
+            }
+          }
+        }
+      },
+      "name": "ai-gateway-model-filtering-inbound",
+      "policyType": "ai-gateway-model-filtering"
+    },
+    {
+      "handler": {
+        "export": "AIGatewayFallbackModelInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "models": {
+            "completions": {
+              "fallback": "openai/gpt-4o-mini"
+            }
+          },
+          "fallbackTimeoutSeconds": 60
+        }
+      },
+      "name": "ai-gateway-fallback-model-inbound",
+      "policyType": "ai-gateway-fallback-model"
+    },
+    {
+      "handler": {
+        "export": "AIGatewaySemanticCacheInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "semanticTolerance": 0.4,
+          "expirationSecondsTtl": 3600
+        }
+      },
+      "name": "ai-gateway-semantic-cache-inbound",
+      "policyType": "ai-gateway-semantic-cache"
+    },
+    {
+      "handler": {
+        "export": "AIGatewayAkamaiFirewallInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "configurationId": "",
+          "api-key": ""
+        }
+      },
+      "name": "ai-gateway-akamai-firewall-inbound",
+      "policyType": "ai-gateway-akamai-firewall"
+    },
+    {
+      "handler": {
+        "export": "AIGatewayPromptInjectionPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "execution": "parallel"
+        }
+      },
+      "name": "ai-gateway-prompt-injection",
+      "policyType": "ai-gateway-prompt-injection"
+    },
+    {
+      "handler": {
+        "export": "AIGatewayOpikTracingInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "apiKey": "",
+          "projectName": "",
+          "workspace": ""
+        }
+      },
+      "name": "ai-gateway-opik-tracing-inbound",
+      "policyType": "ai-gateway-opik-tracing"
+    },
+    {
+      "handler": {
+        "export": "AIGatewayGalileoTracingInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "apiKey": "",
+          "projectId": "",
+          "logStreamId": ""
+        }
+      },
+      "name": "ai-gateway-galileo-tracing-inbound",
+      "policyType": "ai-gateway-galileo-tracing"
+    },
+    {
+      "handler": {
+        "export": "AIGatewayDlpInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "rules": {
+            "inbound": {
+              "pii": {
+                "action": "mask"
+              },
+              "contact-email": {
+                "action": "off"
+              },
+              "finance-credit-card": {
+                "action": "mask"
+              },
+              "finance-iban": {
+                "action": "mask"
+              }
+            },
+            "outbound": {
+              "pii": {
+                "action": "mask"
+              },
+              "contact-email": {
+                "action": "off"
+              },
+              "finance-credit-card": {
+                "action": "mask"
+              },
+              "finance-iban": {
+                "action": "mask"
+              }
+            }
+          }
+        }
+      },
+      "name": "ai-gateway-dlp-inbound",
+      "policyType": "ai-gateway-dlp"
+    },
+    {
+      "handler": {
+        "export": "AIGatewaySmartRouterInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "classifier": {
+            "app": {
+              "appId": "",
+              "model": "openai/gpt-4o-mini"
+            }
+          },
+          "modelsByComplexity": {
+            "low": "openai/gpt-4o-mini",
+            "medium": "openai/gpt-4o",
+            "high": "openai/gpt-5"
+          }
+        }
+      },
+      "name": "ai-gateway-smart-router-inbound",
+      "policyType": "ai-gateway-smart-router"
+    }
+  ]
+}

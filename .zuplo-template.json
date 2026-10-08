@@ -1,0 +1,9 @@
+{
+  "formatVersion": 1,
+  "template": "ai-gateway",
+  "origin": {
+    "revision": "256d7e12d04fba5317a0a6277edf7eb7f1e798385af6f75aed34426aa5b771f4",
+    "release": "7.9.16"
+  },
+  "appliedSteps": []
+}
