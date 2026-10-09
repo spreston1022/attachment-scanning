@@ -45,7 +45,7 @@ interface PolicyOptions {
   maxFileBytes?: number;
 }
 
-const DEFAULT_MAX_FILE_BYTES = 20 * 1024 * 1024;
+const DEFAULT_MAX_FILE_BYTES = 24 * 1024 * 1024;
 
 interface Attachment {
   filename?: string;

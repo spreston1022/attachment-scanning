@@ -160,7 +160,7 @@
         "module": "$import(./modules/attachment-text-extraction-inbound)",
         "options": {
           "onUnsupported": "allow",
-          "maxFileBytes": 20971520
+          "maxFileBytes": 25165824
         }
       },
       "name": "attachment-text-extraction-inbound",

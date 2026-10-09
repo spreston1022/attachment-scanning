@@ -99,7 +99,7 @@ Options (in `config/policies.json`):
 
 - `onUnsupported`: `"block"` (default) or `"allow"`. `allow` forwards
   attachments it cannot read without scanning them.
-- `maxFileBytes`: decoded size limit per attachment (default 20 MB).
+- `maxFileBytes`: decoded size limit per attachment (default 24 MB).
 
 To enable it, in the Zuplo Portal add `attachment-text-extraction-inbound`
 **immediately before** `ai-gateway-dlp-inbound` in the app's policy chain, and
