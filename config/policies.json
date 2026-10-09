@@ -174,30 +174,30 @@
           "rules": {
             "inbound": {
               "pii": {
-                "action": "log"
+                "action": "mask"
               },
               "contact-email": {
                 "action": "off"
               },
               "finance-credit-card": {
-                "action": "log"
+                "action": "mask"
               },
               "finance-iban": {
-                "action": "log"
+                "action": "mask"
               }
             },
             "outbound": {
               "pii": {
-                "action": "log"
+                "action": "mask"
               },
               "contact-email": {
                 "action": "off"
               },
               "finance-credit-card": {
-                "action": "log"
+                "action": "mask"
               },
               "finance-iban": {
-                "action": "log"
+                "action": "mask"
               }
             }
           }
