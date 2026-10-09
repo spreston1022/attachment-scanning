@@ -84,7 +84,10 @@ export default async function attachmentTextExtraction(
     const text = await attachmentToText(attachment, maxFileBytes);
 
     if ("reason" in text) {
-      const status = onUnsupported === "allow" ? "allowed-unscanned" : "blocked";
+      // Oversized files are always blocked: letting them through would skip
+      // DLP for exactly the files too big to inspect.
+      const status =
+        onUnsupported === "allow" && !text.oversized ? "allowed-unscanned" : "blocked";
       reports.push({ filename, status, detail: text.reason });
       return undefined;
     }
@@ -110,7 +113,7 @@ export default async function attachmentTextExtraction(
       format,
       `Attachment blocked: ${blocked
         .map((r) => `${r.filename}: ${r.detail}`)
-        .join("; ")}. Attachments must be convertible to text so they can be scanned for sensitive data.`,
+        .join("; ")}. Attachments must be text-based and within the size limit so they can be scanned for sensitive data.`,
     );
   }
 
@@ -216,7 +219,9 @@ function parseDataUrl(value: string): Pick<Attachment, "mediaType" | "base64"> {
 async function attachmentToText(
   attachment: Attachment,
   maxFileBytes: number,
-): Promise<{ kind: string; text: string; summary: string } | { reason: string }> {
+): Promise<
+  { kind: string; text: string; summary: string } | { reason: string; oversized?: true }
+> {
   if (attachment.unreadable) return { reason: attachment.unreadable };
   if (attachment.text !== undefined) {
     return { kind: "text", text: attachment.text, summary: `${attachment.text.length} chars` };
@@ -229,7 +234,11 @@ async function attachmentToText(
     return { reason: "attachment data is not valid base64" };
   }
   if (bytes.length > maxFileBytes) {
-    return { reason: `attachment is ${bytes.length} bytes, over the ${maxFileBytes} byte limit` };
+    const mb = (n: number) => `${(n / 1024 / 1024).toFixed(1)} MB`;
+    return {
+      reason: `attachment is ${mb(bytes.length)}, over the ${mb(maxFileBytes)} limit`,
+      oversized: true,
+    };
   }
 
   const result = await extractAttachmentText(bytes, attachment.mediaType, attachment.filename);
